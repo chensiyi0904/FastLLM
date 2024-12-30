@@ -94,7 +94,7 @@ class FastLLM:
             res_csv_path = (self.config['res_csv'].get('path', '').
                             strip()) if self.config['res_csv'].get('path', '').strip() != "" else "./res.csv"
             header = [port.strip() for port in self.config['res_csv'].get('header', "").split("@")]
-            self.res_writer = csv.writer(open(res_csv_path, 'a', encoding='utf-8'))
+            self.res_writer = csv.writer(open(res_csv_path, 'a', encoding='utf-8', newline=''))
             self.res_writer.writerow(header)
 
     def set_task(self, task: list[str]):
