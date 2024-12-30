@@ -14,6 +14,7 @@ from typing import Optional
 from queue import Queue
 import requests
 from openai import OpenAI
+from tqdm import tqdm
 
 
 def model_exists(json_data, model_name):
@@ -63,13 +64,13 @@ class FastLLM:
         初始化
         :param config_file: 如果没有提供就是config.ini，或是覆盖掉
         """
+        self.progress_bar = None
         self.config_file = config_file
         self.config = configparser.ConfigParser()
         self.config.read(config_file)
         self.task = Queue()
         self._initialize_params()
         self.writer_lock = threading.Lock()
-        self.task_lock = threading.Lock()
 
     def _initialize_params(self):
         """
@@ -103,6 +104,7 @@ class FastLLM:
         :param task: 任务列表，由str类型的prompt构成的list
         :return: None
         """
+        self.progress_bar = tqdm(total=len(task), desc="Processing Tasks", unit="task")
         for i, t in enumerate(task):
             self.task.put((i, t))  # 将任务元组放入队列
 
@@ -120,11 +122,10 @@ class FastLLM:
             :return:
             """
             while True:
-                with self.task_lock:
-                    try:
-                        current_task = self.task.get(timeout=1)  # 设置超时时间，避免死锁
-                    except queue.Empty:
-                        break  # 如果队列为空，结束线程
+                try:
+                    current_task = self.task.get(timeout=1)  # 设置超时时间，避免死锁
+                except queue.Empty:
+                    break  # 如果队列为空，结束线程
 
                 # 请求处理
                 task_id, task_prompt = current_task
@@ -151,6 +152,7 @@ class FastLLM:
                     print(f"Error processing task {task_id} on {ollama_url}: {e}")
                 finally:
                     self.task.task_done()  # 标记任务完成
+                    self.progress_bar.update(1)
 
         threads = []  # 保存所有线程
         for host, port in zip(self.ollama_host, self.ollama_port):
@@ -175,4 +177,5 @@ class FastLLM:
             thread.join()
 
         self.task.join()
+        self.progress_bar.close()
         print("All tasks have been processed.")
