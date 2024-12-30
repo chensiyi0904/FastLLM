@@ -121,7 +121,7 @@ class FastLLM:
             :param local_port: 本地大模型端口号
             :return:
             """
-            while True:
+            while not self.task.empty():
                 try:
                     current_task = self.task.get(timeout=1)  # 设置超时时间，避免死锁
                 except queue.Empty:
